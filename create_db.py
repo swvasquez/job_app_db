@@ -28,6 +28,7 @@ if __name__ == '__main__':
     CREATE TABLE job_applications (
         company text NOT NULL,
         job_id text NOT NULL,
+        title text NOT NULL,
         url text,
         filepath text,
         application_date text,

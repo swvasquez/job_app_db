@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filepath', type=str, default='NULL'),
     parser.add_argument('-d', '--date', type=str, default='NULL')
     parser.add_argument('-r', '--response', type=str, default='no')
+    parser.add_argument('title', type=str)
 
     args = parser.parse_args()
     values = ','.join((f"'{getattr(args, arg)}'" for arg in vars(args)))
