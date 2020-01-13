@@ -1,0 +1,32 @@
+db_name: job_application_db
+db_dir: data
+table_name: job_applicationsssss
+schema:
+  columns:
+    - company:
+        -text
+        -not_null
+    - job_title:
+      - text
+      - not_null
+    - job_id:
+      - text
+      - not_null
+    - url:
+      - text
+      - null
+    - filepath:
+      - text
+      - null
+    - applied:
+      - text
+      - nul
+    - response:
+      - text
+      - null
+    - year:
+      - text
+      - null
+  primary_key:
+    - company
+    - job_title
