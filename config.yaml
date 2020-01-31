@@ -2,6 +2,7 @@ db_name: job_application_db
 db_dir: data
 table_name: job_apps
 schema:
+
   columns:
       - [company, TEXT, NOT_NULL]
       - [job_title, TEXT, NOT_NULL]
@@ -11,4 +12,5 @@ schema:
       - [applied, TEXT, NULL]
       - [date, TEXT, NULL]
       - [response, TEXT, NULL]
+
   primary_key: [company, job_id]
