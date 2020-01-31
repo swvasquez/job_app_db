@@ -1,3 +1,6 @@
+# A simple script to store job application progress using the Python SQLite
+# wrapper. The table schema is located in the config.yaml file.
+
 import argparse
 import pathlib
 import sqlite3
@@ -14,18 +17,20 @@ if __name__ == '__main__':
     DB_DIR = pathlib.Path(__file__).parent / config['db_dir']
     TABLE_NAME = config['table_name']
     SCHEMA = config['schema']
+    COLUMNS = SCHEMA['columns']
+    PKEY = SCHEMA['primary_key']
 
     db_path = DB_DIR / f"{DB_NAME}.sqlite3"
 
-    # Parse input values for entry to add.
+    # Creates parser rules for data entry.
     parser = argparse.ArgumentParser()
-    parser.add_argument('company', type=str)
-    parser.add_argument('job_id', type=str)
-    parser.add_argument('-u', '--url', type=str, default='NULL')
-    parser.add_argument('-f', '--filepath', type=str, default='NULL'),
-    parser.add_argument('-d', '--date', type=str, default='NULL')
-    parser.add_argument('-r', '--response', type=str, default='no')
-    parser.add_argument('title', type=str)
+    for col in COLUMNS:
+        field = col[0]
+        default = None if col[2] == 'NOT_NULL' else 'NULL'
+        if default:
+            parser.add_argument(f"--{field}", type=str, default=default)
+        else:
+            parser.add_argument(field, type=str, default=default)
 
     args = parser.parse_args()
     values = ','.join((f"'{getattr(args, arg)}'" for arg in vars(args)))
@@ -35,49 +40,66 @@ if __name__ == '__main__':
     c = conn.cursor()
     c.execute("SELECT name FROM sqlite_master WHERE type='table';")
 
-    # If the database or table defined in the configuration file does not
-    # exist, create it. If the table exists already, but the configuration
-    # file has new columns, append them to the existing table.
-    if TABLE_NAME in (table[0] for table in c.fetchall()):
+    # Check if schema in config file has changed. If it has, rename table
+    # and create a new table with the updated schema. You will have to
+    # manually move data from the old table to the updated one.
+    new_schema = False
+    no_table = True
+
+    # First, check if table exists or schema has changed.
+    existing_tables = [table[0] for table in c.fetchall()]
+    if TABLE_NAME in existing_tables:
+        no_table = False
         c.execute(f"PRAGMA table_info({TABLE_NAME})")
-        existing_cols = {col[1] for col in c.fetchall()}
-        new_cols = []
-        for col in SCHEMA['columns']:
-            column_name = list(col.keys())[0]
-            type = col[column_name][0]
-            if column_name not in existing_cols:
-                new_cols.append(f"{column_name} {type.upper()}")
-        if new_cols:
-            append_sql = f"ALTER TABLE {TABLE_NAME} ADD {','.join(new_cols)};"
-            print(append_sql)
-            c.execute(append_sql)
-            conn.commit()
-    else:
+        existing_cols = [list(col[1:4]) for col in c.fetchall()]
+        for col in existing_cols:
+            col[2] = 'NULL' if col[2] == 0 else 1
+        if existing_cols != SCHEMA:
+            new_schema = True
+            copies = {int(table_name[-1]) for table_name in existing_tables
+                      if table_name.startswith(f"{TABLE_NAME}_copy_")}
+            new = max(copies) + 1 if copies else 1
+            new_name = f"{TABLE_NAME}_copy_{new}"
+            rename_sql = f"""ALTER TABLE {TABLE_NAME} RENAME TO {new_name}"""
+
+            print('Schema changed. Renaming table. Executing:')
+            print(rename_sql)
+
+            c.execute(rename_sql)
+
+    # Then, if necessary, create table.
+    if new_schema or no_table:
         columns = SCHEMA['columns']
         column_defs = []
-
         for col in columns:
-            column_name = list(col.keys())[0]
-            type = col[column_name][0].upper()
-            if col[column_name][1] == 'not_null':
-                required = ' NOT NULL'
-            else:
-                required = ''
-            column_defs.append(f"{column_name} {type}{required}")
+            column_name = col[0]
+            type = col[1].upper()
+            required = 'NOT_NULL' if col[2] == 'NOT_NULL' else ''
+            column_defs.append(f"{column_name} {type} {required}")
+        if PKEY:
+            new_sql = \
+                f"""
+                    CREATE TABLE {TABLE_NAME}({', '.join(column_defs)})
+                    ADD CONSTRAINT {TABLE_NAME} PRIMARY KEY ({', '.join(PKEY)})
+                """
+        else:
+            new_sql = \
+                f""" CREATE TABLE {TABLE_NAME}({', '.join(column_defs)});"""
 
-        create_sql = f"CREATE TABLE {TABLE_NAME} ({','.join(column_defs)});"
-        print(create_sql)
-        c.execute(create_sql)
-        conn.commit()
+        print('Table does not exist. Creating new table. Executing:')
+        print(new_sql)
 
-    # Adds the new data to the table.
-    add_command = """
-          INSERT INTO {0}
-          VALUES ({1});
-          """.format(TABLE_NAME, values)
+        c.execute(new_sql)
 
-    print("Executing:")
+    # Adds the new entry to the table.
+    add_command = f"""
+          INSERT INTO {TABLE_NAME}
+          VALUES ({values});
+          """
+
+    print('Inserting entry into table. Executing:')
     print(add_command)
-
     c.execute(add_command)
+
+    # Finalize modifications.
     conn.commit()
