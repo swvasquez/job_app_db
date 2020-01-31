@@ -1,32 +1,14 @@
 db_name: job_application_db
 db_dir: data
-table_name: job_applicationsssss
+table_name: job_apps
 schema:
   columns:
-    - company:
-        -text
-        -not_null
-    - job_title:
-      - text
-      - not_null
-    - job_id:
-      - text
-      - not_null
-    - url:
-      - text
-      - null
-    - filepath:
-      - text
-      - null
-    - applied:
-      - text
-      - nul
-    - response:
-      - text
-      - null
-    - year:
-      - text
-      - null
-  primary_key:
-    - company
-    - job_title
+      - [company, TEXT, NOT_NULL]
+      - [job_title, TEXT, NOT_NULL]
+      - [job_id, TEXT, NOT_NULL]
+      - [url, TEXT, NULL]
+      - [filepath, TEXT, NULL]
+      - [applied, TEXT, NULL]
+      - [date, TEXT, NULL]
+      - [response, TEXT, NULL]
+  primary_key: [company, job_id]
